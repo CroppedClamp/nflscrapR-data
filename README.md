@@ -16,3 +16,54 @@ Additionally, code examples are located in the [R folder](https://github.com/ryu
 
 During the 2018 NFL season, this repository will be updated at least once a week on
 either Tuesday or Wednesday to account for each week of games played.
+
+### Update on New Data
+
+As of April 2020, we will be adding new data to these CSVs. As has been the case for awhile, the nflscrapR repo is using an EP and WP model that is based off of a training of the model on the years from 2009-2017. With February's addition in this repository of data from 1999-2019, it was overdue for us to retrain the model using all of the extra data. In addition to this change, we will also be addressing a couple of other issues that have come up:
++ *Inconsistent team abbreviations* In this upload, all team abbreviations will be standardized in all columns and also in the play-by-play for all years, using the standard NFL abbreviations.
++ *Missing/incorrect data* As you can find in the `errata` folder within the root of this repository, the old game-center APIs had tons of missing and incorrect data. We have reconciled this and will be uploading the correct data for all years from 1999-2019.
++ *Inconsistent player naming* As conventions in NFLGSIS changed over the years, the player names changed as well. For example, in 2003, Kurt Warner was in the play-by-play as `K. Warner`, and then in 2004, he was `K.Warner`. This makes it very difficult to parse. In this new upload, all players have consistent names, both in identifier fields and also in the play-by-plays. Keep in mind, this means that some players are now indistinguishable in the play-by-plays, but this occurence is rare.
++ *Missing targets* There were a number of missing targets on pass plays that have now all been filled in back to the year 2000.
++ *Newly trained WP models* The WP models of the old data set were trained from 2009-2017 as well, and were also trained on data that was very wrong in many places. There were thousands of occurences where the scores were actually wrong, and tens of thousands of cases where timeouts were wrong. While this is not super important in a lot of cases, it's very important for win probability, so this model has been re-run.
+
+The era-weighted CSVs can be found in the main `play_by_play_data` folder, the non-weighted CSVs can be found in `unweighted_play_by_play_data` and the old data with the old nflscrapR models can be found in `legacy_play_by_play_data`.
+
+#### The Dataset
+The dataset encompasses all but 2 games from 1999-2019, including post-season, totalling 5,350 games out of the possible 5,352. When training the model, we used all these games, excluding pre- and post-season games, since those are inherently a different form of football. Also included in the model is a random sample of 160 games from the 1998 season. This data set is incomplete, but is helpful in training the model, especially as era weights are applied. Overall, the training set had 906,052 live-action plays (along with 38,473 data points for timeouts and 38,928 for other game events, like two-minute warnings). After culling, the training set (pbp_ep_model_data) had 816,251 rows.
+
+#### Errata
+You will also find in this repository a folder named `errata`. It is the comprehensive list of everything that the NFL game-center (and as a result, the old nflscrapR data) has discrepancies/inaccuracies on.
+
+#### Methodology on Fixing Targets and Player Names
+*Adding targets.* For these two, it was a large-scale effort of data cleansing. For targets, we were able to parse out the player name from the actual play-by-play description. Then, we would look up this name for the roster from this game, and was able to add a target statistic with the full NFLGSIS ID, etc. To ensure we were doing this right, we then ran this code on the dataset that *did* have targets (2006-2019), using only the play-by-play, and foudn that the methodology worked 99.999% of the time (all but one play, which had to do with a comment the scorer left). In doing this, we had to code for plays being reversed and also how penalties affected each, having to do a couple of them by hand. Then, as a final step, we compared our text-parsed targets to NFL statistics, and found perfect matches. 
+
+*Player names.* This was an ugly affair of running find-and-replace, but ensuring that the proper name matched to the proper person. We would look up the rosters for each game and be able to run through all of the play-by-play lines and then match player names and replace them. We decided on using for player names the most-common string that was used to refer to them. For example, if in 400 games Jaron Brown was referred to as J.Brown, and in 399 he was Ja.Brown, his name is now Ja.Brown throughout the entire dataset. This satisfies the simple rule: *all players have the exact same name throughout the data set.* However, this does mean there can be ambiguous naming, especially if John Brown and Jaron Brown are in the same game. We assumed this effect to be negligible, however, and can be controlled for in very specific cases.
+
+#### Era Weights
+One of the problems inherent in doing this type of analysis is that the dataset encompasses 21 years of plays, over which time the game of football and its rules have changed significantly. There are two approaches to looking at this: We can assume that the differences are actually mostly due to the change in skill of the players, and the objective difficulty in scoring has not actually changed over the past 21 years. The second way is to assume that the game is fundamentlly different, and the objective difficulty in scoring changes by era. 
+
+**Unweighted Modeling.** The first approach is a non-weighted fitting of this model. We run multinomial logistic regression over the entire dataset, with weights as applied before, in the nflscrapR model (which are on score differential and distance from the current play to the scoring play). The general result here is that players from the past suffer greatly. The average EPA/play in 1999 is -0.053 and it is +0.05 by 2020. This doesn't mean there is something inherently wrong with modelling this way, it's possible (and probably likely) that offensive players 21 years ago were truly just less skilled at getting points. 
+
+**Weighted Modeling.** This approach applies a logit weight on linear temporal difference. Put simply, we add in a weight so that each year actually has a different EP_Model. While we still sample all the data, we will weight the training data in years distant from the target year less. For example, if we are creating a model for 2002, we will significantly down-weight the offenses of 2019, but will bias towards 2001 and 2003. The outcome here is that players of old typically do not suffer as much (the average EPA in 1999 is -0.039 now).
+
+In the next couple sections, we will go over findings and how good the models fit.
+
+#### A Note on Win Probability
+While we did do weighting on EPA, we did not do era weighting for the new win-probability models, though we did re-train the model using all of the data. The assumption here is that the same tenets of football apply from 1999-2019, so win probability should be mostly the same year-to-year. This could be tested using calibration from year-to-year, but has not been yet.
+
+#### Model Findings
+Below are two simple graphs. The first relates average EPA/play over each year by each model, and then the second shows the differences between using era-weighted and the other models by year. 
+
+![alt text](https://github.com/CroppedClamp/nflscrapR-data/graphs/all_models.png "All Models")
+
+While average EPA/play by year is not the only way to look at these things (actual distributions and variances are also interesting, along with breaking down by run/pass), it does elucidate a couple of things. First, it is clear that the old model thought scoring was easier than it actually is. Throughout every year, both the unweighted and weighted models have a higher EPA/play. This is most likely due to the fact that this model was trained from 2009-2017, when offense was easier than it was back in 1999. Both the unweighted and weighted models seem to think that offense is actually better now than the old model gave it credit for. As a corollary to that, as one might expect, these differences are largest in older years (graph on the right). This makes sense, given that 1999 players might not be able to perform at the level of a 2019 offense. One interesting thing here is that the era-weighted and non-weighted models converge in more recent years in terms of average EPA/play. 
+
+Next, we run leave-one-out calibration on our model to see how it works. 
+
+![alt text](https://github.com/CroppedClamp/nflscrapR-data/graphs/loso_fit.png "LOSO")
+
+Finally, the error on this model is 0.0126, which is down from 0.0131 on the other models. The other thing to note is that in the unweighted model, the errors were higher, and were very high in early years.
+
+
+#### Missing Games
+This data set is missing 2 regular-season games from the year 2000, though these are being added soon.
