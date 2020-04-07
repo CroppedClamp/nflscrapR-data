@@ -54,13 +54,13 @@ While we did do weighting on EPA, we did not do era weighting for the new win-pr
 #### Model Findings
 Below are two simple graphs. The first relates average EPA/play over each year by each model, and then the second shows the differences between using era-weighted and the other models by year. 
 
-![alt text](https://github.com/CroppedClamp/nflscrapR-data/graphs/all_models.png "All Models")
+![alt text](https://github.com/CroppedClamp/nflscrapR-data/blob/master/graphs/all_models.png "All Models")
 
 While average EPA/play by year is not the only way to look at these things (actual distributions and variances are also interesting, along with breaking down by run/pass), it does elucidate a couple of things. First, it is clear that the old model thought scoring was easier than it actually is. Throughout every year, both the unweighted and weighted models have a higher EPA/play. This is most likely due to the fact that this model was trained from 2009-2017, when offense was easier than it was back in 1999. Both the unweighted and weighted models seem to think that offense is actually better now than the old model gave it credit for. As a corollary to that, as one might expect, these differences are largest in older years (graph on the right). This makes sense, given that 1999 players might not be able to perform at the level of a 2019 offense. One interesting thing here is that the era-weighted and non-weighted models converge in more recent years in terms of average EPA/play. 
 
 Next, we run leave-one-out calibration on our model to see how it works. 
 
-![alt text](https://github.com/CroppedClamp/nflscrapR-data/graphs/loso_fit.png "LOSO")
+![alt text](https://github.com/CroppedClamp/nflscrapR-data/blob/master/graphs/loso_fit.png "LOSO")
 
 Finally, the error on this model is 0.0126, which is down from 0.0131 on the other models. The other thing to note is that in the unweighted model, the errors were higher, and were very high in early years.
 
